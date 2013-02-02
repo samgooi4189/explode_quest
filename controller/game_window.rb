@@ -6,7 +6,8 @@ end
 
 class  Player 
 	def initialize(window)
-		@image = Gosu::Image.new(window, "../media/metroid_block.png", false)
+		@image = Gosu::Image.new(window, "../media/space_ship.png", false)
+		@beep = Gosu::Sample.new(window, "../media/bomb_explode.wav")
 		@x = @y = @vel_x = @vel_y = @angle = 0.0
 		@score =0
 	end
@@ -32,7 +33,7 @@ class  Player
 		@x += @vel_x
 		@y += @vel_y
 		@x %= 640
-		@y %= 480
+		@y %= 314
 		
 		@vel_x *= 0.95
 		@vel_y *= 0.95
@@ -40,6 +41,22 @@ class  Player
 
 	def draw
 		@image.draw_rot(@x, @y, 1, @angle)
+	end
+	
+	def score 
+		@score
+	end
+	
+	def collect_stars(stars)
+		stars.reject! do |star|
+			if Gosu::distance(@x, @y, star.x, star.y) < 35 then
+				@score += 10
+				@beep.play
+				true
+			else
+				false
+			end
+		end
 	end
 end
 
@@ -53,7 +70,7 @@ class Star
 		@color.green = rand(255 - 40) + 40
 		@color.blue = rand(256 - 40) + 40
 		@x = rand * 640
-		@y = rand * 480
+		@y = rand * 314
 	end
 	
 	def draw
@@ -66,13 +83,18 @@ end
 
 class GameWindow < Gosu::Window
 	def initialize
-		super 640, 480, false
+		super 640, 314, false
 		self.caption = "Explode Quest"
 	
-		@background_image = Gosu::Image.new(self, "../media/whitecircle.png", true)
+		@background_image = Gosu::Image.new(self, "../media/space.png", true)
 		
 		@player = Player.new(self)
-		@player.warp(320, 240)
+		@player.warp(320, 158)
+		
+		@star_anim = Gosu::Image::load_tiles(self, "../media/tech_ships.png", 25, 25, false)
+		@stars = Array.new
+		
+		@font = Gosu::Font.new(self, Gosu::default_font_name, 20)
 	end
 
 	def update
@@ -85,12 +107,20 @@ class GameWindow < Gosu::Window
 		if button_down? Gosu::KbUp or button_down? Gosu::GpButton0 then
 			@player.accelerate
 		end
+		
 		@player.move
+		@player.collect_stars(@stars)
+		
+		if rand(100) < 4 and @stars.size < 25 then
+			@stars.push(Star.new(@star_anim))
+		end
 	end
 	
 	def draw
+		@background_image.draw(0,0,ZOrder::Background)
 		@player.draw
-		@background_image.draw(0,0,0)
+		@stars.each { |star| star.draw }
+		@font.draw("Score: #{@player.score}", 10, 10, ZOrder::UI, 1.0, 1.0, 0xffffff00)
 	end
 
 	def button_down(id)
